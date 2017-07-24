@@ -1,3 +1,39 @@
+var express = require('express');
+var request = require('request');
+
+var app = express();
+
+var GA_TRACKING_ID = 'UA-102972388-1';
+
+function trackEvent(category, action, label, value, callbback) {
+  var data = {
+    v: '1', // API Version.
+    tid: GA_TRACKING_ID, // Tracking ID / Property ID.
+    // Anonymous Client Identifier. Ideally, this should be a UUID that
+    // is associated with particular user, device, or browser instance.
+    cid: '555',
+    t: 'event', // Event hit type.
+    ec: category, // Event category.
+    ea: action, // Event action.
+    el: label, // Event label.
+    ev: value, // Event value.
+  };
+
+  request.post(
+    'http://www.google-analytics.com/collect', {
+      form: data
+    },
+    function(err, response) {
+      if (err) { return callbback(err); }
+      if (response.statusCode !== 200) {
+        return callbback(new Error('Tracking failed'));
+      }
+      callbback();
+    }
+  );
+}
+
+
 "use strict";
 var APP_ID = "amzn1.ask.skill.33279aaa-0c1c-4f6f-9c34-935c2495b344";
 
@@ -37,37 +73,38 @@ var languageString = {
             "ANSWER_IS_MESSAGE": "That\'s ",
             "TELL_QUESTION_MESSAGE": "%s. %s ",
             "SCORE_IS_MESSAGE": "That\'s right. ",
-            "QUIZ_OVER_MESSAGE": "End of questions. Get ready for your Big Five OCEAN personality scores. Write down the scores so you can reference them later. First, write down the word ocean. O, C, E, A, N, vertically up and down. " +
+            "QUIZ_OVER_MESSAGE": "End of questions. Get ready for your Big Five OCEAN personality scores. First, write down the word ocean. O, C, E, A, and N. Get ready to write down your score next to each letter. " +
                                  "Your O for Openness score is %s. " +
                                  "Your C for Conscientiousness score is %s.  " +
                                  "Your E for Extroversion score is %s.  " +
                                  "Your A for Agreeableness score is %s.  " +
                                  "Your N for Neuroticism score is %s.  " +
-                                 "Zero is a low score while forty is a high score. Twenty is in the mid range. All scores are on a continuum. Let me tell you what these scores may determine about your personality. ",
-            "HI_OPENNESS": "From your Openness score I can determine, how you may be willing to try many things and have many interests. " +
+                                 "All scores are on a continuum. Scores range from zero to forty. Twenty is in the mid range. This means if you scored near mid range you may have traits on both sides of the continuum. " +
+                                 "Let me tell you what these scores may determine about your personality. ",
+            "HI_OPENNESS": "In Openness, you may be willing to try many things and have many interests. " +
                            "You may have creative pursuits or just enjoy creativity in general. " +
                            "You can see things as how they can be, and not just as they are. ",
-            "LO_OPENNESS": "From your Openness score I can determine, how you may be more traditional and down to earth. " +
+            "LO_OPENNESS": "In Openness, you may be more traditional and down to earth. " +
                            "You tend to know what you like and what you don\'t like and stick to it. ",
-            "HI_CONSCIENTIOUS": "From your Conscientiousness score I can determine, how you can be organized and pay attention to details. " +
+            "HI_CONSCIENTIOUS": "In Conscientiousness, you can be organized and pay attention to details. " +
                                 "You often like structure and schedules. " +
                                 "This helps you finish tasks and accomplish your goals. ",
-            "LO_CONSCIENTIOUS": "From your Conscientiousness score I can determine, how you can be disorganized and pay little attention to detail. " +
+            "LO_CONSCIENTIOUS": "In Conscientiousness, you can be disorganized and pay little attention to detail. " +
                                 "You often dislike structure and schedules. " +
                                 "This can get in the way of accomplishing your goals. ",
-            "HI_EXTROVERSION": "From your Extroversion score I can determine, how you can be outgoing. You generally can find energy in being around people. " +
+            "HI_EXTROVERSION": "In Extroversion, you can be outgoing. You generally can find energy in being around people. " +
                                "You tend to say things before you think about them. ",
-            "LO_EXTROVERSION": "From your Extroversion score I can determine, how you can be reserved. You generally can find energy in solitude. " +
+            "LO_EXTROVERSION": "In Extroversion, you can be reserved. You generally can find energy in solitude. " +
                                 "You tend to think things through before speaking. ",
-            "HI_AGREEABLENESS": "From your Agreeableness score I can determine, how you can be cooperative. You enjoy helping and adding to others happiness. " +
+            "HI_AGREEABLENESS": "In Agreeableness, you can be cooperative. You enjoy helping and adding to others happiness. " +
                                 "Others tend to have warm happy feelings after talking with you and you like that. ",
-            "LO_AGREEABLENESS": "From your Agreeableness score I can determine, how you can be competitive. Some may even say manipulative. " +
-                                "Your tendency to tell it like it is may not leave others with warm happy feelings. ",
-            "HI_NEUROTICISM": "From your Neuroticism score I can determine, how mood swings, anxiety, irritability and sadness can throw you off. " +
+            "LO_AGREEABLENESS": "In Agreeableness, how you can be competitive. You enjoy winning and staying ahead. " +
+                                "Your tendency to tell it like you see it may not leave others with warm happy feelings. ",
+            "HI_NEUROTICISM": "In Neuroticism, mood swings, anxiety, irritability and sadness can throw you off. " +
                               "It\'s important to for you to remember to ask for what you need and reach out for help when needed. ",
-            "LO_NEUROTICISM": "From your Neuroticism score I can determine, how you can seem more emotionally stable. " +
+            "LO_NEUROTICISM": "In Neuroticism, you can seem more emotionally stable. " +
                               "You can bounce back from life\'s inevitable setbacks. ",
-            "MID_RANGE_MESSAGE": "The following may only be true half of the time because you scored mid range. ",
+            "MID_RANGE_MESSAGE": "This next trait may vary because you scored mid range. ",
             "CONSERVATIVE": "Your opinions may lean towards the conservative end of the spectrum. ",
             "LIBERAL": "Your opinions may lean towards the liberal end of the spectrum. ",
             "END_MESSAGE": "End of evaluation. If you would like to hear your evaluation again please say, repeat, and answer question fifty again. Thank you. "
@@ -83,6 +120,7 @@ var languageString = {
 
 var Alexa = require("alexa-sdk");
 var APP_ID = undefined;  // TODO replace with your app ID (OPTIONAL).
+
 
 exports.handler = function(event, context, callback) {
     var alexa = Alexa.handler(event, context);
@@ -114,6 +152,16 @@ var newSessionHandlers = {
 
 var startStateHandlers = Alexa.CreateStateHandler(QUIZ_STATES.START, {
     "StartQuiz": function (newQuiz) {
+      trackEvent(
+        'Sequence',
+        'Began',
+        'na',
+        '100', // Event value must be numeric.
+        function(err) {
+          if (err) {
+            return next(err);
+          }
+        });
         var speechOutput = newQuiz ? this.t("NEW_QUIZ_MESSAGE", this.t("QUIZ_NAME")) + this.t("WELCOME_MESSAGE", QUIZ_LENGTH.toString()) : "";
         // Select QUIZ_LENGTH questions for the quiz
         var translatedQuestions = this.t("QUESTIONS");
@@ -191,18 +239,58 @@ var helpStateHandlers = Alexa.CreateStateHandler(QUIZ_STATES.HELP, {
         this.emit(":ask", speechOutput, repromptText);
     },
     "AMAZON.StartOverIntent": function () {
+      trackEvent(
+        'Intent',
+        'AMAZON.StartOverIntent',
+        'na',
+        '100', // Event value must be numeric.
+        function(err) {
+          if (err) {
+            return next(err);
+          }
+        });
         this.handler.state = QUIZ_STATES.START;
         this.emitWithState("StartQuiz", false);
     },
     "AMAZON.RepeatIntent": function () {
+      trackEvent(
+        'Intent',
+        'AMAZON.RepeatIntent',
+        'na',
+        '100', // Event value must be numeric.
+        function(err) {
+          if (err) {
+            return next(err);
+          }
+        });
         var newQuiz = (this.attributes["speechOutput"] && this.attributes["repromptText"]) ? false : true;
         this.emitWithState("helpTheUser", newQuiz);
     },
     "AMAZON.HelpIntent": function() {
+      trackEvent(
+        'Intent',
+        'AMAZON.HelpIntent',
+        'na',
+        '100', // Event value must be numeric.
+        function(err) {
+          if (err) {
+            return next(err);
+          }
+        });
         var newQuiz = (this.attributes["speechOutput"] && this.attributes["repromptText"]) ? false : true;
         this.emitWithState("helpTheUser", newQuiz);
     },
     "AMAZON.YesIntent": function() {
+      trackEvent(
+        'Intent',
+        'AMAZON.YesIntent',
+        'na',
+        '100', // Event value must be numeric.
+        function(err) {
+          if (err) {
+            return next(err);
+          }
+        });
         if (this.attributes["speechOutput"] && this.attributes["repromptText"]) {
             this.handler.state = QUIZ_STATES.TRIVIA;
             this.emitWithState("AMAZON.RepeatIntent");
@@ -212,14 +300,44 @@ var helpStateHandlers = Alexa.CreateStateHandler(QUIZ_STATES.HELP, {
         }
     },
     "AMAZON.NoIntent": function() {
+        trackEvent(
+          'Intent',
+          'AMAZON.NoIntent',
+          'na',
+          '100', // Event value must be numeric.
+          function(err) {
+            if (err) {
+              return next(err);
+            }
+          });
         var speechOutput = this.t("NO_MESSAGE");
         this.emit(":tell", speechOutput);
     },
     "AMAZON.StopIntent": function () {
+      trackEvent(
+        'Intent',
+        'AMAZON.StopIntent',
+        'na',
+        '100', // Event value must be numeric.
+        function(err) {
+          if (err) {
+            return next(err);
+          }
+        });
         var speechOutput = this.t("STOP_MESSAGE");
         this.emit(":ask", speechOutput, speechOutput);
     },
     "AMAZON.CancelIntent": function () {
+      trackEvent(
+        'Intent',
+        'AMAZON.CancelIntent',
+        'na',
+        '100', // Event value must be numeric.
+        function(err) {
+          if (err) {
+            return next(err);
+          }
+        });
         this.emit(":tell", this.t("CANCEL_MESSAGE"));
     },
     "Unhandled": function () {
@@ -270,6 +388,18 @@ function handleUserGuess(userGaveUp) {
 
     // Check if we can exit the quiz session after QUIZ_LENGTH questions (zero-indexed)
     if (this.attributes["currentQuestionIndex"] == QUIZ_LENGTH - 1) {
+      trackEvent(
+        'Sequence',
+        'Completed',
+        'na',
+        '100', // Event value must be numeric.
+        function(err) {
+          if (err) {
+            return next(err);
+          }
+        });
+
+
         var userOpenness = (8 + scores[5] - scores[10] + scores[15] - scores[20] + scores[25] - scores[30] + scores[35] + scores[40] + scores[45] + scores[50]);
         var userConscientious = (14 + scores[3] - scores[8] + scores[13] - scores[18] + scores[23] - scores[28] + scores[33] - scores[38] + scores[43] + scores[48]);
         var userExtroversion = (20 + scores[1] - scores[6] + scores[11] - scores[16] + scores[21] - scores[26] + scores[31] - scores[36] + scores[41] - scores[46]);
@@ -303,9 +433,9 @@ function handleUserGuess(userGaveUp) {
         }
 
 
-        if (userConscientious>=25 && userOpenness<=15){
+        if (userConscientious>=23 && userOpenness<=17){
           speechOutput += this.t("CONSERVATIVE");
-        } else if (userConscientious<=15 && userOpenness>=25) {
+        } else if (userConscientious<=17 && userOpenness>=23) {
           speechOutput += this.t("LIBERAL");
         }
 
